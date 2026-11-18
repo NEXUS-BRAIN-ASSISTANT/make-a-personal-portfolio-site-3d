@@ -46,9 +46,9 @@ class CyberAudio {
 
   playScrollTick(velocity = 1) {
     if (!this.enabled || !this.ctx) return;
-    const now = Date.now();
+    const now = performance.now();
     // Throttle scroll ticks so it sounds like a futuristic high-tech servo / scanner
-    if (now - this.lastScrollSoundTime < 65) return;
+    if (now - this.lastScrollSoundTime < 45) return;
     this.lastScrollSoundTime = now;
 
     try {
@@ -57,17 +57,17 @@ class CyberAudio {
       const gain = this.ctx.createGain();
       const filter = this.ctx.createBiquadFilter();
 
-      // Pitch shifts slightly with scroll velocity
-      const baseFreq = 420 + Math.min(velocity * 12, 500);
+      // Pitch shifts dynamically with scroll velocity
+      const baseFreq = 480 + Math.min(velocity * 60, 750);
       osc.type = 'triangle';
       osc.frequency.setValueAtTime(baseFreq, t);
-      osc.frequency.exponentialRampToValueAtTime(baseFreq * 0.5, t + 0.04);
+      osc.frequency.exponentialRampToValueAtTime(baseFreq * 0.45, t + 0.038);
 
       filter.type = 'bandpass';
-      filter.frequency.setValueAtTime(baseFreq * 1.5, t);
-      filter.Q.setValueAtTime(3, t);
+      filter.frequency.setValueAtTime(baseFreq * 1.3, t);
+      filter.Q.setValueAtTime(3.5, t);
 
-      const vol = Math.min(0.04 + velocity * 0.015, 0.12);
+      const vol = Math.min(0.04 + velocity * 0.018, 0.14);
       gain.gain.setValueAtTime(vol, t);
       gain.gain.exponentialRampToValueAtTime(0.0001, t + 0.04);
 
@@ -76,7 +76,38 @@ class CyberAudio {
       gain.connect(this.masterGain);
 
       osc.start(t);
-      osc.stop(t + 0.045);
+      osc.stop(t + 0.042);
+    } catch (e) {}
+  }
+
+  playWarpBurst(intensity = 1.0) {
+    if (!this.enabled || !this.ctx) return;
+    try {
+      const t = this.ctx.currentTime;
+      const osc = this.ctx.createOscillator();
+      const gain = this.ctx.createGain();
+      const filter = this.ctx.createBiquadFilter();
+
+      osc.type = 'sine';
+      osc.frequency.setValueAtTime(180, t);
+      osc.frequency.exponentialRampToValueAtTime(720, t + 0.12);
+      osc.frequency.exponentialRampToValueAtTime(90, t + 0.45);
+
+      filter.type = 'lowpass';
+      filter.frequency.setValueAtTime(400, t);
+      filter.frequency.linearRampToValueAtTime(1800, t + 0.12);
+      filter.frequency.exponentialRampToValueAtTime(150, t + 0.45);
+
+      const vol = Math.min(0.12 * intensity, 0.22);
+      gain.gain.setValueAtTime(vol, t);
+      gain.gain.exponentialRampToValueAtTime(0.0001, t + 0.48);
+
+      osc.connect(filter);
+      filter.connect(gain);
+      gain.connect(this.masterGain);
+
+      osc.start(t);
+      osc.stop(t + 0.5);
     } catch (e) {}
   }
 
@@ -118,7 +149,7 @@ class CyberAudio {
       filter.frequency.setValueAtTime(900, t);
       filter.frequency.exponentialRampToValueAtTime(100, t + 0.45);
 
-      gain.gain.setValueAtTime(0.18, t);
+      gain.gain.setValueAtTime(0.16, t);
       gain.gain.exponentialRampToValueAtTime(0.0001, t + 0.5);
 
       osc.connect(filter);
