@@ -1,7 +1,7 @@
 /**
  * Main Application Orchestrator
  * Connects DOM interactions, GSAP ScrollTrigger, Audio synthesis,
- * Project Modals, Telemetry HUD, and Three.js 3D Engine.
+ * Project Modals, Telemetry HUD, Auto-Cruise, Card 3D Aerodynamics, and Three.js 3D Engine.
  */
 
 document.addEventListener('DOMContentLoaded', () => {
@@ -19,6 +19,7 @@ document.addEventListener('DOMContentLoaded', () => {
   const hudProgress = document.getElementById('telemetry-progress');
   const hudVelocity = document.getElementById('telemetry-velocity-val');
   const hudCoords = document.getElementById('telemetry-coords-val');
+  const hudVector = document.getElementById('telemetry-vector');
   const velocityBarFill = document.getElementById('velocity-bar-fill');
 
   window.onCyberTelemetryUpdate = (data) => {
@@ -30,10 +31,22 @@ document.addEventListener('DOMContentLoaded', () => {
       const pct = Math.min(parseFloat(data.velocity) * 2.2, 100);
       velocityBarFill.style.width = `${pct}%`;
     }
+    if (hudVector) {
+      const v = parseFloat(data.velocity);
+      if (v > 2) {
+        hudVector.textContent = data.direction > 0 ? '▼ DESCENDING' : '▲ ASCENDING';
+        hudVector.style.color = 'var(--neon-primary)';
+      } else {
+        hudVector.textContent = '● ORBITING';
+        hudVector.style.color = 'var(--text-muted)';
+      }
+    }
   };
 
   // 3. Scroll Event Handler - Feeds into 3D Scene on every scroll!
   let lastScrollTop = window.pageYOffset || document.documentElement.scrollTop;
+  let isAutoCruising = false;
+  let cruiseRaf = null;
 
   const handleScroll = () => {
     const scrollTop = window.pageYOffset || document.documentElement.scrollTop;
@@ -53,9 +66,12 @@ document.addEventListener('DOMContentLoaded', () => {
 
   // Direct wheel & touch gesture listener: every scroll gesture injects instant torque & shockwave impulse
   window.addEventListener('wheel', (e) => {
+    if (isAutoCruising) stopAutoCruise();
     if (cyberScene) {
-      const impulse = Math.min(Math.abs(e.deltaY) * 0.005, 1.2);
-      cyberScene.scrollImpulse = Math.min(cyberScene.scrollImpulse + impulse, 3.0);
+      const impulse = Math.min(Math.abs(e.deltaY) * 0.006, 1.4);
+      cyberScene.scrollImpulse = Math.min(cyberScene.scrollImpulse + impulse, 3.5);
+      if (e.deltaY > 0) cyberScene.scrollDirection = 1;
+      else if (e.deltaY < 0) cyberScene.scrollDirection = -1;
       if (window.cyberAudio) {
         window.cyberAudio.playScrollTick(cyberScene.scrollImpulse);
       }
@@ -64,23 +80,100 @@ document.addEventListener('DOMContentLoaded', () => {
 
   let touchStartY = 0;
   window.addEventListener('touchstart', (e) => {
+    if (isAutoCruising) stopAutoCruise();
     if (e.touches.length > 0) touchStartY = e.touches[0].clientY;
   }, { passive: true });
 
   window.addEventListener('touchmove', (e) => {
     if (e.touches.length > 0 && cyberScene) {
       const touchY = e.touches[0].clientY;
-      const diff = Math.abs(touchY - touchStartY);
+      const diff = touchStartY - touchY;
       touchStartY = touchY;
-      const impulse = Math.min(diff * 0.02, 1.0);
-      cyberScene.scrollImpulse = Math.min(cyberScene.scrollImpulse + impulse, 3.0);
+      const impulse = Math.min(Math.abs(diff) * 0.025, 1.2);
+      cyberScene.scrollImpulse = Math.min(cyberScene.scrollImpulse + impulse, 3.5);
+      if (diff > 0) cyberScene.scrollDirection = 1;
+      else if (diff < 0) cyberScene.scrollDirection = -1;
       if (window.cyberAudio) {
         window.cyberAudio.playScrollTick(cyberScene.scrollImpulse);
       }
     }
   }, { passive: true });
 
-  // 4. Navigation Links & Side Dots active state updates
+  // 4. Kinetic 3D Aerodynamic Pitch on Cards in RAF Loop
+  let smoothedCardTilt = 0;
+
+  function updateCardPhysics() {
+    requestAnimationFrame(updateCardPhysics);
+    if (!cyberScene) return;
+
+    const targetTilt = Math.max(-3.5, Math.min(3.5, -cyberScene.scrollImpulse * 1.5 * cyberScene.scrollDirection));
+    smoothedCardTilt += (targetTilt - smoothedCardTilt) * 0.12;
+
+    document.documentElement.style.setProperty('--card-tilt', `${smoothedCardTilt.toFixed(2)}deg`);
+    document.documentElement.style.setProperty('--scroll-impulse', cyberScene.scrollImpulse.toFixed(3));
+  }
+  updateCardPhysics();
+
+  // 5. Automated Cinematic Flythrough (Auto-Warp Cruise)
+  const btnAutoCruise = document.getElementById('btn-auto-cruise');
+
+  function startAutoCruise() {
+    isAutoCruising = true;
+    if (btnAutoCruise) {
+      btnAutoCruise.classList.add('active');
+      btnAutoCruise.innerHTML = `
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="6" y="4" width="4" height="16"></rect><rect x="14" y="4" width="4" height="16"></rect></svg>
+        <span>PAUSE CRUISE</span>
+      `;
+    }
+    if (cyberScene) cyberScene.injectScrollImpulse(1.0);
+    if (window.cyberAudio) window.cyberAudio.playChime(880, 0.2);
+
+    let lastTime = performance.now();
+    const cruiseLoop = (time) => {
+      if (!isAutoCruising) return;
+      const dt = (time - lastTime) / 1000;
+      lastTime = time;
+
+      const maxScroll = document.documentElement.scrollHeight - window.innerHeight;
+      const currentScroll = window.pageYOffset;
+
+      if (currentScroll >= maxScroll - 5) {
+        // Reached the quantum horizon! Warp back to Genesis smoothly
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+        stopAutoCruise();
+        return;
+      }
+
+      // Cruise speed: ~320px per second with subtle dynamic flow
+      const step = 320 * dt;
+      window.scrollBy(0, step);
+      cruiseRaf = requestAnimationFrame(cruiseLoop);
+    };
+    cruiseRaf = requestAnimationFrame(cruiseLoop);
+  }
+
+  function stopAutoCruise() {
+    if (!isAutoCruising) return;
+    isAutoCruising = false;
+    if (cruiseRaf) cancelAnimationFrame(cruiseRaf);
+    if (btnAutoCruise) {
+      btnAutoCruise.classList.remove('active');
+      btnAutoCruise.innerHTML = `
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="5 3 19 12 5 21 5 3"></polygon></svg>
+        <span>AUTO-CRUISE</span>
+      `;
+    }
+  }
+
+  if (btnAutoCruise) {
+    btnAutoCruise.addEventListener('click', () => {
+      if (isAutoCruising) stopAutoCruise();
+      else startAutoCruise();
+    });
+  }
+
+  // 6. Navigation Links & Side Dots active state updates
   const sections = Array.from(document.querySelectorAll('.section-zone'));
   const navLinks = Array.from(document.querySelectorAll('.hud-nav-link'));
   const sideDots = Array.from(document.querySelectorAll('.side-nav-dot'));
@@ -118,16 +211,18 @@ document.addEventListener('DOMContentLoaded', () => {
   document.querySelectorAll('a[href^="#"], .side-nav-dot').forEach((elem) => {
     elem.addEventListener('click', (e) => {
       e.preventDefault();
+      if (isAutoCruising) stopAutoCruise();
       const targetId = elem.getAttribute('href')?.replace('#', '') || elem.getAttribute('data-target');
       const targetSec = document.getElementById(targetId);
       if (targetSec) {
-        if (window.cyberAudio) window.cyberAudio.playChime(600, 0.15);
+        if (window.cyberAudio) window.cyberAudio.playChime(640, 0.15);
         targetSec.scrollIntoView({ behavior: 'smooth' });
+        if (cyberScene) cyberScene.injectScrollImpulse(1.2);
       }
     });
   });
 
-  // 5. Audio Toggle Button
+  // 7. Audio Toggle Button
   const btnAudio = document.getElementById('btn-audio-toggle');
   if (btnAudio) {
     btnAudio.addEventListener('click', () => {
@@ -135,54 +230,78 @@ document.addEventListener('DOMContentLoaded', () => {
         const isEnabled = window.cyberAudio.toggle();
         btnAudio.classList.toggle('active', isEnabled);
         btnAudio.innerHTML = isEnabled 
-          ? `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon><path d="M19.07 4.93a10 10 0 0 1 0 14.14M15.54 8.46a5 5 0 0 1 0 7.07"></path></svg> AUDIO: ON`
-          : `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon><line x1="23" y1="9" x2="17" y2="15"></line><line x1="17" y1="9" x2="23" y2="15"></line></svg> AUDIO: MUTED`;
+          ? `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon><path d="M19.07 4.93a10 10 0 0 1 0 14.14M15.54 8.46a5 5 0 0 1 0 7.07"></path></svg> <span>AUDIO: ON</span>`
+          : `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon><line x1="23" y1="9" x2="17" y2="15"></line><line x1="17" y1="9" x2="23" y2="15"></line></svg> <span>AUDIO: MUTED</span>`;
       }
     });
   }
 
-  // 6. Wireframe Mode Toggle
+  // 8. Wireframe Mode Toggle
   const btnWireframe = document.getElementById('btn-wireframe-toggle');
   if (btnWireframe && cyberScene) {
     btnWireframe.addEventListener('click', () => {
       const isWire = cyberScene.toggleWireframe();
       btnWireframe.classList.toggle('active', isWire);
-      if (window.cyberAudio) window.cyberAudio.playChime(500, 0.12, 'square');
+      if (window.cyberAudio) window.cyberAudio.playChime(520, 0.12, 'square');
     });
   }
 
-  // 7. Theme Picker Dots
+  // 9. Theme Picker Dots (in HUD and Lab)
   const themeDots = document.querySelectorAll('.theme-dot');
   themeDots.forEach((dot) => {
     dot.addEventListener('click', () => {
-      themeDots.forEach(d => d.classList.remove('active'));
-      dot.classList.add('active');
       const theme = dot.getAttribute('data-theme');
+      themeDots.forEach(d => {
+        if (d.getAttribute('data-theme') === theme) d.classList.add('active');
+        else d.classList.remove('active');
+      });
       if (cyberScene) cyberScene.setTheme(theme);
-      if (window.cyberAudio) window.cyberAudio.playChime(800, 0.2);
+      if (window.cyberAudio) window.cyberAudio.playChime(820, 0.2);
     });
   });
 
-  // 8. Shockwave Action Button
-  const btnShockwave = document.getElementById('btn-spawn-shockwave');
-  if (btnShockwave && cyberScene) {
-    btnShockwave.addEventListener('click', () => {
-      cyberScene.triggerShockwave(null, 1.8);
-      btnShockwave.style.transform = 'scale(0.95)';
-      setTimeout(() => btnShockwave.style.transform = 'scale(1)', 150);
+  // 10. Shockwave Action Buttons
+  const shockwaveBtns = document.querySelectorAll('#btn-spawn-shockwave, #btn-lab-shockwave');
+  shockwaveBtns.forEach(btn => {
+    btn.addEventListener('click', () => {
+      if (cyberScene) cyberScene.triggerChromaticShockwave(null, 1.8);
+      btn.style.transform = 'scale(0.95)';
+      setTimeout(() => btn.style.transform = 'scale(1)', 150);
     });
-  }
+  });
 
-  // 9. Warp to Top Button
+  // 11. Warp to Top Button
   const btnWarpTop = document.getElementById('btn-warp-top');
   if (btnWarpTop) {
     btnWarpTop.addEventListener('click', () => {
+      if (isAutoCruising) stopAutoCruise();
       window.scrollTo({ top: 0, behavior: 'smooth' });
-      if (cyberScene) cyberScene.triggerShockwave(null, 1.5);
+      if (cyberScene) cyberScene.triggerChromaticShockwave(null, 1.8);
     });
   }
 
-  // 10. Project Cards Interactivity & Modal Data
+  // 12. Interactive 3D Lab Geometry Buttons
+  const labGeoBtns = document.querySelectorAll('.btn-lab-geo');
+  labGeoBtns.forEach(btn => {
+    btn.addEventListener('click', () => {
+      labGeoBtns.forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      const geoType = btn.getAttribute('data-geo');
+      if (cyberScene) cyberScene.setLabGeometry(geoType);
+    });
+  });
+
+  // 13. Lab Scroll Impulse Injector Button
+  const btnLabImpulse = document.getElementById('btn-lab-impulse');
+  if (btnLabImpulse) {
+    btnLabImpulse.addEventListener('click', () => {
+      if (cyberScene) cyberScene.injectScrollImpulse(1.8);
+      btnLabImpulse.style.transform = 'scale(0.95)';
+      setTimeout(() => btnLabImpulse.style.transform = 'scale(1)', 150);
+    });
+  }
+
+  // 14. Project Database & Modals
   const projectDatabase = [
     {
       title: 'NEURA-GL // Synaptic Neural Visualizer',
@@ -297,7 +416,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   });
 
-  // 11. Copy Email Action
+  // 15. Copy Email Action
   const btnCopyEmail = document.getElementById('btn-copy-email');
   if (btnCopyEmail) {
     btnCopyEmail.addEventListener('click', () => {
@@ -315,7 +434,7 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   }
 
-  // 12. Interactive Contact Form Submission Simulation
+  // 16. Interactive Contact Form Submission Simulation
   const contactForm = document.getElementById('contact-form');
   const formFeedback = document.getElementById('form-feedback');
 
@@ -345,7 +464,7 @@ document.addEventListener('DOMContentLoaded', () => {
         }
 
         contactForm.reset();
-        if (cyberScene) cyberScene.triggerShockwave(null, 1.6);
+        if (cyberScene) cyberScene.triggerChromaticShockwave(null, 1.8);
 
         setTimeout(() => {
           submitBtn.innerHTML = origContent;
@@ -355,16 +474,15 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   }
 
-  // 13. GSAP ScrollTrigger Animations for DOM elements
+  // 17. GSAP ScrollTrigger Animations for DOM elements
   if (window.gsap && window.ScrollTrigger) {
     gsap.registerPlugin(ScrollTrigger);
 
-    // Fade and slide up sections
     gsap.utils.toArray('.glass-card').forEach((card) => {
       gsap.from(card, {
         scrollTrigger: {
           trigger: card,
-          start: 'top 85%',
+          start: 'top 88%',
           toggleActions: 'play none none none'
         },
         y: 40,
@@ -378,7 +496,7 @@ document.addEventListener('DOMContentLoaded', () => {
       gsap.from(title, {
         scrollTrigger: {
           trigger: title,
-          start: 'top 85%',
+          start: 'top 88%',
           toggleActions: 'play none none none'
         },
         y: 30,
