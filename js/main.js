@@ -64,14 +64,13 @@ document.addEventListener('DOMContentLoaded', () => {
 
   window.addEventListener('scroll', handleScroll, { passive: true });
 
-  // Direct wheel & touch gesture listener: every scroll gesture injects instant torque & shockwave impulse
+  // Direct wheel & touch gesture listener: every scroll gesture injects instant torque, sparks & shockwave impulse
   window.addEventListener('wheel', (e) => {
     if (isAutoCruising) stopAutoCruise();
     if (cyberScene) {
-      const impulse = Math.min(Math.abs(e.deltaY) * 0.006, 1.4);
-      cyberScene.scrollImpulse = Math.min(cyberScene.scrollImpulse + impulse, 3.5);
-      if (e.deltaY > 0) cyberScene.scrollDirection = 1;
-      else if (e.deltaY < 0) cyberScene.scrollDirection = -1;
+      const dir = e.deltaY > 0 ? 1 : -1;
+      const impulse = Math.min(Math.max(Math.abs(e.deltaY) * 0.007, 0.35), 2.2);
+      cyberScene.onGestureScroll(dir, impulse);
       if (window.cyberAudio) {
         window.cyberAudio.playScrollTick(cyberScene.scrollImpulse);
       }
@@ -89,28 +88,46 @@ document.addEventListener('DOMContentLoaded', () => {
       const touchY = e.touches[0].clientY;
       const diff = touchStartY - touchY;
       touchStartY = touchY;
-      const impulse = Math.min(Math.abs(diff) * 0.025, 1.2);
-      cyberScene.scrollImpulse = Math.min(cyberScene.scrollImpulse + impulse, 3.5);
-      if (diff > 0) cyberScene.scrollDirection = 1;
-      else if (diff < 0) cyberScene.scrollDirection = -1;
-      if (window.cyberAudio) {
-        window.cyberAudio.playScrollTick(cyberScene.scrollImpulse);
+      if (Math.abs(diff) > 2) {
+        const dir = diff > 0 ? 1 : -1;
+        const impulse = Math.min(Math.max(Math.abs(diff) * 0.02, 0.4), 2.2);
+        cyberScene.onGestureScroll(dir, impulse);
+        if (window.cyberAudio) {
+          window.cyberAudio.playScrollTick(cyberScene.scrollImpulse);
+        }
       }
     }
   }, { passive: true });
 
-  // 4. Kinetic 3D Aerodynamic Pitch on Cards in RAF Loop
+  // 4. Kinetic 3D Aerodynamic Pitch on Cards & Live HUD Pulse Meter in RAF Loop
   let smoothedCardTilt = 0;
+  const pulseMeter = document.getElementById('telemetry-pulse-meter');
+  const pulseMeterVal = document.getElementById('pulse-meter-val');
+  const pulseMeterLabel = document.getElementById('pulse-meter-label');
 
   function updateCardPhysics() {
     requestAnimationFrame(updateCardPhysics);
     if (!cyberScene) return;
 
-    const targetTilt = Math.max(-3.5, Math.min(3.5, -cyberScene.scrollImpulse * 1.5 * cyberScene.scrollDirection));
-    smoothedCardTilt += (targetTilt - smoothedCardTilt) * 0.12;
+    // Pitch aerodynamic tilt up to +/- 6.5deg
+    const targetTilt = Math.max(-6.5, Math.min(6.5, -cyberScene.scrollImpulse * 2.8 * cyberScene.scrollDirection));
+    smoothedCardTilt += (targetTilt - smoothedCardTilt) * 0.14;
 
     document.documentElement.style.setProperty('--card-tilt', `${smoothedCardTilt.toFixed(2)}deg`);
     document.documentElement.style.setProperty('--scroll-impulse', cyberScene.scrollImpulse.toFixed(3));
+
+    // Dynamic HUD pulse meter reaction
+    if (pulseMeter && pulseMeterVal) {
+      if (cyberScene.scrollImpulse > 0.15) {
+        pulseMeter.classList.add('active');
+        pulseMeterVal.textContent = `+${(cyberScene.scrollImpulse * 1.6).toFixed(1)}G // WARP`;
+        if (pulseMeterLabel) pulseMeterLabel.textContent = cyberScene.scrollDirection > 0 ? 'DESCENDING:' : 'ASCENDING:';
+      } else {
+        pulseMeter.classList.remove('active');
+        pulseMeterVal.textContent = 'IDLE 0.0G';
+        if (pulseMeterLabel) pulseMeterLabel.textContent = 'SCROLL IMPULSE:';
+      }
+    }
   }
   updateCardPhysics();
 
@@ -413,6 +430,15 @@ document.addEventListener('DOMContentLoaded', () => {
   window.addEventListener('keydown', (e) => {
     if (e.key === 'Escape' && modalBackdrop && modalBackdrop.classList.contains('open')) {
       closeModal();
+      return;
+    }
+    // Keyboard navigation injects instant 3D scroll physics and audio tick
+    if (['ArrowDown', 'PageDown', ' '].includes(e.key)) {
+      if (cyberScene) cyberScene.onGestureScroll(1, 1.3);
+      if (window.cyberAudio) window.cyberAudio.playScrollTick(1.3);
+    } else if (['ArrowUp', 'PageUp'].includes(e.key)) {
+      if (cyberScene) cyberScene.onGestureScroll(-1, 1.3);
+      if (window.cyberAudio) window.cyberAudio.playScrollTick(1.3);
     }
   });
 
