@@ -725,9 +725,13 @@ class CyberScene {
   focusProject(index) {
     if (this.projectPortals[index]) {
       const p = this.projectPortals[index];
-      gsap.to(p.scale, { x: 1.25, y: 1.25, z: 1.25, duration: 0.5, ease: 'back.out(2)' });
-      if (p.userData.artifact) {
-        gsap.to(p.userData.artifact.rotation, { y: p.userData.artifact.rotation.y + Math.PI, duration: 0.8 });
+      if (window.gsap) {
+        gsap.to(p.scale, { x: 1.25, y: 1.25, z: 1.25, duration: 0.5, ease: 'back.out(2)' });
+        if (p.userData.artifact) {
+          gsap.to(p.userData.artifact.rotation, { y: p.userData.artifact.rotation.y + Math.PI, duration: 0.8 });
+        }
+      } else {
+        p.scale.set(1.25, 1.25, 1.25);
       }
     }
   }
@@ -735,7 +739,11 @@ class CyberScene {
   unfocusProject(index) {
     if (this.projectPortals[index]) {
       const p = this.projectPortals[index];
-      gsap.to(p.scale, { x: 1.0, y: 1.0, z: 1.0, duration: 0.4, ease: 'power2.out' });
+      if (window.gsap) {
+        gsap.to(p.scale, { x: 1.0, y: 1.0, z: 1.0, duration: 0.4, ease: 'power2.out' });
+      } else {
+        p.scale.set(1.0, 1.0, 1.0);
+      }
     }
   }
 

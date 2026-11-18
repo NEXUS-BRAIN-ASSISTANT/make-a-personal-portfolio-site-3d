@@ -51,6 +51,35 @@ document.addEventListener('DOMContentLoaded', () => {
 
   window.addEventListener('scroll', handleScroll, { passive: true });
 
+  // Direct wheel & touch gesture listener: every scroll gesture injects instant torque & shockwave impulse
+  window.addEventListener('wheel', (e) => {
+    if (cyberScene) {
+      const impulse = Math.min(Math.abs(e.deltaY) * 0.005, 1.2);
+      cyberScene.scrollImpulse = Math.min(cyberScene.scrollImpulse + impulse, 3.0);
+      if (window.cyberAudio) {
+        window.cyberAudio.playScrollTick(cyberScene.scrollImpulse);
+      }
+    }
+  }, { passive: true });
+
+  let touchStartY = 0;
+  window.addEventListener('touchstart', (e) => {
+    if (e.touches.length > 0) touchStartY = e.touches[0].clientY;
+  }, { passive: true });
+
+  window.addEventListener('touchmove', (e) => {
+    if (e.touches.length > 0 && cyberScene) {
+      const touchY = e.touches[0].clientY;
+      const diff = Math.abs(touchY - touchStartY);
+      touchStartY = touchY;
+      const impulse = Math.min(diff * 0.02, 1.0);
+      cyberScene.scrollImpulse = Math.min(cyberScene.scrollImpulse + impulse, 3.0);
+      if (window.cyberAudio) {
+        window.cyberAudio.playScrollTick(cyberScene.scrollImpulse);
+      }
+    }
+  }, { passive: true });
+
   // 4. Navigation Links & Side Dots active state updates
   const sections = Array.from(document.querySelectorAll('.section-zone'));
   const navLinks = Array.from(document.querySelectorAll('.hud-nav-link'));
