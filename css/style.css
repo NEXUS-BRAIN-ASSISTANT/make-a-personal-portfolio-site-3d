@@ -436,7 +436,7 @@ body {
   line-height: 1.7;
 }
 
-/* Glassmorphism Cards */
+/* Glassmorphism Cards with 3D Aerodynamic Kinetic Tilt */
 .glass-card {
   background: var(--bg-card);
   backdrop-filter: blur(14px);
@@ -444,7 +444,10 @@ body {
   border: 1px solid var(--border-glass);
   border-radius: 14px;
   padding: 2rem;
-  transition: all 0.35s cubic-bezier(0.16, 1, 0.3, 1);
+  transform: perspective(1200px) rotateX(var(--card-tilt, 0deg));
+  transform-style: preserve-3d;
+  will-change: transform;
+  transition: background 0.35s ease, border-color 0.35s ease, box-shadow 0.35s ease;
   position: relative;
   overflow: hidden;
 }
@@ -464,8 +467,8 @@ body {
 .glass-card:hover {
   background: var(--bg-card-hover);
   border-color: var(--border-glass-bright);
-  transform: translateY(-5px);
-  box-shadow: 0 12px 36px rgba(0, 240, 255, 0.12);
+  transform: perspective(1200px) rotateX(var(--card-tilt, 0deg)) translateY(-6px) translateZ(8px);
+  box-shadow: 0 16px 40px rgba(0, 240, 255, 0.16);
 }
 
 .glass-card:hover::before {
@@ -493,8 +496,38 @@ body {
   font-family: var(--font-mono);
   font-size: 0.78rem;
   color: #fff;
-  margin-bottom: 1.8rem;
+  margin-bottom: 0.8rem;
   box-shadow: 0 0 16px rgba(0, 240, 255, 0.15);
+}
+
+.scroll-reaction-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.6rem;
+  padding: 4px 14px;
+  border-radius: 20px;
+  background: rgba(0, 240, 255, 0.06);
+  border: 1px solid var(--border-glass);
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
+  color: var(--neon-primary);
+  margin-bottom: 1.8rem;
+  letter-spacing: 0.05em;
+  box-shadow: 0 0 14px rgba(0, 240, 255, 0.1);
+  animation: badgePulse 3s infinite ease-in-out;
+}
+
+.badge-glow {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--neon-primary);
+  box-shadow: 0 0 8px var(--neon-primary);
+}
+
+@keyframes badgePulse {
+  0%, 100% { border-color: rgba(0, 240, 255, 0.3); box-shadow: 0 0 10px rgba(0, 240, 255, 0.1); }
+  50% { border-color: var(--neon-primary); box-shadow: 0 0 20px rgba(0, 240, 255, 0.35); }
 }
 
 .pulse-dot {
