@@ -92,6 +92,7 @@ class CyberScene {
     this.createZoneLab();
     this.createZoneContact();
     this.createShockwaveSystem();
+    this.createScrollSparksSystem();
     this.bindEvents();
     this.animate();
   }
@@ -148,47 +149,55 @@ class CyberScene {
   // 3D HYPERDRIVE WARP STREAM LINES (STRETCH AND ZOOM ON EVERY SCROLL!)
   // =========================================================================
   createWarpStream() {
-    this.warpCount = 420;
-    const positions = new Float32Array(this.warpCount * 6); // 2 vertices per line (head & tail)
+    this.warpCount = 520;
+    const positions = new Float32Array(this.warpCount * 6);
     const colors = new Float32Array(this.warpCount * 6);
     this.warpData = [];
 
     const cPri = new THREE.Color(this.activeTheme.primary);
     const cSec = new THREE.Color(this.activeTheme.secondary);
+    const cAcc = new THREE.Color(this.activeTheme.accent);
 
     for (let i = 0; i < this.warpCount; i++) {
-      // Cylinder distribution along camera descent path (Y from +35 down to -260)
-      const radius = 6 + Math.random() * 24;
+      const t = Math.random();
+      const pt = this.getSplinePoint(t);
+      const ptNext = this.getSplinePoint(Math.min(0.9999, t + 0.025));
+      const tangent = new THREE.Vector3().subVectors(ptNext.pos, pt.pos).normalize();
+      if (tangent.lengthSq() < 0.001) tangent.set(0, -1, 0);
+
+      const ref = Math.abs(tangent.y) > 0.85 ? new THREE.Vector3(1, 0, 0) : new THREE.Vector3(0, 1, 0);
+      const normal = new THREE.Vector3().crossVectors(tangent, ref).normalize();
+      const binormal = new THREE.Vector3().crossVectors(tangent, normal).normalize();
+
+      const radius = 3.5 + Math.random() * 22.0;
       const angle = Math.random() * Math.PI * 2;
-      const x = Math.cos(angle) * radius;
-      const y = 35 - Math.random() * 295;
-      const z = Math.sin(angle) * radius;
+      const radialOffset = normal.clone().multiplyScalar(Math.cos(angle) * radius)
+                            .add(binormal.clone().multiplyScalar(Math.sin(angle) * radius));
 
-      // Head
-      positions[i * 6] = x;
-      positions[i * 6 + 1] = y;
-      positions[i * 6 + 2] = z;
+      const headPos = pt.pos.clone().add(radialOffset);
 
-      // Tail initially matches head
-      positions[i * 6 + 3] = x;
-      positions[i * 6 + 4] = y;
-      positions[i * 6 + 5] = z;
+      positions[i * 6] = headPos.x;
+      positions[i * 6 + 1] = headPos.y;
+      positions[i * 6 + 2] = headPos.z;
 
-      // Color
-      const col = Math.random() > 0.4 ? cPri : cSec;
+      positions[i * 6 + 3] = headPos.x;
+      positions[i * 6 + 4] = headPos.y;
+      positions[i * 6 + 5] = headPos.z;
+
+      const pick = Math.random();
+      const col = pick > 0.6 ? cPri : (pick > 0.3 ? cSec : cAcc);
       colors[i * 6] = col.r;
       colors[i * 6 + 1] = col.g;
       colors[i * 6 + 2] = col.b;
-      colors[i * 6 + 3] = col.r * 0.3;
-      colors[i * 6 + 4] = col.g * 0.3;
-      colors[i * 6 + 5] = col.b * 0.3;
+      colors[i * 6 + 3] = col.r * 0.25;
+      colors[i * 6 + 4] = col.g * 0.25;
+      colors[i * 6 + 5] = col.b * 0.25;
 
       this.warpData.push({
-        baseX: x,
-        baseY: y,
-        baseZ: z,
-        speed: 0.8 + Math.random() * 1.6,
-        driftAngle: angle
+        basePos: headPos.clone(),
+        tangent: tangent.clone(),
+        speed: 0.9 + Math.random() * 1.8,
+        lengthMultiplier: 1.0 + Math.random() * 1.6
       });
     }
 
@@ -201,7 +210,7 @@ class CyberScene {
       transparent: true,
       opacity: 0.85,
       blending: THREE.AdditiveBlending,
-      linewidth: 1
+      linewidth: 1.5
     });
 
     this.warpLines = new THREE.LineSegments(this.warpGeo, this.warpMat);
@@ -254,35 +263,143 @@ class CyberScene {
   // =========================================================================
   createShockwaveSystem() {
     this.shockwaves = [];
-    const ringGeo = new THREE.RingGeometry(0.6, 0.85, 48);
+    const ringGeo = new THREE.RingGeometry(0.6, 0.88, 54);
 
-    for (let i = 0; i < 12; i++) {
+    for (let i = 0; i < 32; i++) {
       const mat = new THREE.MeshBasicMaterial({
         color: this.activeTheme.primary,
         side: THREE.DoubleSide,
         transparent: true,
         opacity: 0,
-        blending: THREE.AdditiveBlending
+        blending: THREE.AdditiveBlending,
+        depthWrite: false
       });
       const mesh = new THREE.Mesh(ringGeo, mat);
       mesh.visible = false;
       this.scene.add(mesh);
-      this.shockwaves.push({ mesh, mat, life: 0, maxLife: 1, intensity: 1, rotSpeed: 0.02 });
+      this.shockwaves.push({ mesh, mat, life: 0, maxLife: 1, intensity: 1, rotSpeed: 0.02, isNear: true });
     }
   }
 
-  triggerShockwave(originVec, intensity = 1.0, colorOverride = null) {
+  createScrollSparksSystem() {
+    this.sparkCount = 260;
+    const positions = new Float32Array(this.sparkCount * 3);
+    const colors = new Float32Array(this.sparkCount * 3);
+    this.sparkData = [];
+
+    const cPri = new THREE.Color(this.activeTheme.primary);
+    const cSec = new THREE.Color(this.activeTheme.secondary);
+    const cWhite = new THREE.Color(0xffffff);
+
+    for (let i = 0; i < this.sparkCount; i++) {
+      positions[i * 3] = 0;
+      positions[i * 3 + 1] = 0;
+      positions[i * 3 + 2] = -9999;
+
+      colors[i * 3] = cPri.r;
+      colors[i * 3 + 1] = cPri.g;
+      colors[i * 3 + 2] = cPri.b;
+
+      this.sparkData.push({
+        life: 0,
+        maxLife: 0.55,
+        x: 0, y: 0, z: 0,
+        vx: 0, vy: 0, vz: 0,
+        color: Math.random() > 0.5 ? (Math.random() > 0.5 ? cPri : cSec) : cWhite
+      });
+    }
+
+    this.sparkGeo = new THREE.BufferGeometry();
+    this.sparkGeo.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+    this.sparkGeo.setAttribute('color', new THREE.BufferAttribute(colors, 3));
+
+    // Particle texture
+    const canvas = document.createElement('canvas');
+    canvas.width = 64;
+    canvas.height = 64;
+    const ctx = canvas.getContext('2d');
+    const grad = ctx.createRadialGradient(32, 32, 0, 32, 32, 32);
+    grad.addColorStop(0, 'rgba(255,255,255,1)');
+    grad.addColorStop(0.35, 'rgba(0,240,255,0.9)');
+    grad.addColorStop(0.75, 'rgba(0,240,255,0.25)');
+    grad.addColorStop(1, 'rgba(0,0,0,0)');
+    ctx.fillStyle = grad;
+    ctx.fillRect(0, 0, 64, 64);
+    const sparkTex = new THREE.CanvasTexture(canvas);
+
+    this.sparkMat = new THREE.PointsMaterial({
+      size: 4.8,
+      map: sparkTex,
+      vertexColors: true,
+      transparent: true,
+      opacity: 0.95,
+      blending: THREE.AdditiveBlending,
+      depthWrite: false
+    });
+
+    this.sparkPoints = new THREE.Points(this.sparkGeo, this.sparkMat);
+    this.scene.add(this.sparkPoints);
+  }
+
+  emitScrollSparks(direction = 1, count = 12, intensity = 1.0) {
+    if (!this.sparkData || !this.camera) return;
+
+    const forward = new THREE.Vector3().subVectors(this.cameraTarget, this.camera.position).normalize();
+    const right = new THREE.Vector3().crossVectors(forward, this.camera.up).normalize();
+    const up = new THREE.Vector3().crossVectors(right, forward).normalize();
+
+    let spawned = 0;
+    for (let i = 0; i < this.sparkCount && spawned < count; i++) {
+      const sp = this.sparkData[i];
+      if (sp.life <= 0) {
+        const diskAngle = Math.random() * Math.PI * 2;
+        const diskRadius = 1.2 + Math.random() * 5.2;
+        const forwardDist = 5.5 + Math.random() * 4.5;
+
+        const origin = this.camera.position.clone()
+          .addScaledVector(forward, forwardDist)
+          .addScaledVector(right, Math.cos(diskAngle) * diskRadius)
+          .addScaledVector(up, Math.sin(diskAngle) * diskRadius);
+
+        sp.x = origin.x;
+        sp.y = origin.y;
+        sp.z = origin.z;
+
+        const burstSpeed = (4.0 + Math.random() * 7.5) * intensity;
+        const streamSpeed = (-direction * (14.0 + Math.random() * 16.0)) * intensity;
+
+        sp.vx = (Math.cos(diskAngle) * burstSpeed) + (forward.x * streamSpeed);
+        sp.vy = (Math.sin(diskAngle) * burstSpeed) + (forward.y * streamSpeed);
+        sp.vz = ((Math.random() - 0.5) * burstSpeed) + (forward.z * streamSpeed);
+
+        sp.life = 1.0;
+        sp.maxLife = 0.38 + Math.random() * 0.45;
+        spawned++;
+      }
+    }
+  }
+
+  triggerShockwave(originVec, intensity = 1.0, colorOverride = null, isNearFrustum = true) {
     const sw = this.shockwaves.find(s => s.life <= 0) || this.shockwaves[0];
-    const spawnPos = originVec || this.cameraTarget.clone().add(new THREE.Vector3(0, 0, -2));
-    
+    let spawnPos;
+    if (originVec) {
+      spawnPos = originVec.clone();
+    } else if (isNearFrustum) {
+      const forward = new THREE.Vector3().subVectors(this.cameraTarget, this.camera.position).normalize();
+      spawnPos = this.camera.position.clone().addScaledVector(forward, 9.2);
+    } else {
+      spawnPos = this.cameraTarget.clone().add(new THREE.Vector3(0, 0, -2));
+    }
+
     sw.mesh.position.copy(spawnPos);
     sw.mesh.lookAt(this.camera.position);
     sw.mesh.scale.set(0.1, 0.1, 0.1);
     sw.mesh.visible = true;
     sw.life = 1.0;
     sw.intensity = intensity;
+    sw.isNear = isNearFrustum;
     sw.mat.color.set(colorOverride || this.activeTheme.primary);
-    sw.mat.opacity = 0.9 * intensity;
+    sw.mat.opacity = 0.95 * intensity;
     sw.rotSpeed = (Math.random() - 0.5) * 0.05;
 
     if (window.cyberAudio) {
@@ -292,13 +409,14 @@ class CyberScene {
 
   // Multi-ring chromatic burst when scrolling vigorously
   triggerChromaticShockwave(originVec, intensity = 1.5) {
-    this.triggerShockwave(originVec, intensity, this.activeTheme.primary);
+    this.triggerShockwave(originVec, intensity, this.activeTheme.primary, true);
     setTimeout(() => {
-      this.triggerShockwave(originVec, intensity * 0.85, this.activeTheme.secondary);
-    }, 60);
+      this.triggerShockwave(originVec, intensity * 0.85, this.activeTheme.secondary, true);
+    }, 45);
     setTimeout(() => {
-      this.triggerShockwave(originVec, intensity * 0.65, this.activeTheme.accent);
-    }, 120);
+      this.triggerShockwave(originVec, intensity * 0.65, this.activeTheme.accent, true);
+    }, 90);
+    this.triggerShockwave(null, intensity * 0.75, this.activeTheme.primary, false);
   }
 
   // =========================================================================
@@ -835,44 +953,69 @@ class CyberScene {
   // =========================================================================
   // SCROLL EVENT HANDLER: FIRES ON EVERY SCROLL TICK!
   // =========================================================================
+  // Direct gesture scroll listener (wheel, touch, keyboard) - triggers instant 3D reaction
+  onGestureScroll(direction = 1, impulse = 0.8) {
+    const now = performance.now();
+    this.scrollDirection = direction;
+    this.scrollImpulse = Math.min(this.scrollImpulse + impulse, 4.0);
+
+    // Guaranteed photon sparks on EVERY gesture
+    this.emitScrollSparks(direction, Math.floor(10 + this.scrollImpulse * 5), this.scrollImpulse);
+
+    // Shockwave pulse
+    if (now - this.lastShockwaveTime > 60) {
+      this.lastShockwaveTime = now;
+      if (this.scrollImpulse > 0.85) {
+        this.triggerChromaticShockwave(null, Math.min(this.scrollImpulse * 0.7, 1.4));
+      } else {
+        this.triggerShockwave(null, Math.min(0.48 + this.scrollImpulse * 0.4, 1.05), null, true);
+      }
+    }
+  }
+
+  // Scroll Event Handler - Fires on EVERY scroll tick!
   onScrollTick(progress, delta) {
     const now = performance.now();
     this.targetScrollProgress = Math.max(0, Math.min(1, progress));
 
-    // Direction calculation
     if (delta > 0) this.scrollDirection = 1;
     else if (delta < 0) this.scrollDirection = -1;
 
-    // Velocity calculation
     const diff = Math.abs(this.targetScrollProgress - this.prevTargetProgress);
     this.prevTargetProgress = this.targetScrollProgress;
     this.scrollVelocity = Math.max(Math.abs(delta) * 0.8, diff * 160);
 
-    // Inject physical impulse
-    const impulseStrength = Math.min(Math.abs(delta) * 0.004 + diff * 12, 2.8);
-    this.scrollImpulse = Math.min(this.scrollImpulse + impulseStrength, 3.5);
+    // Physical impulse with guaranteed minimum kick on every scroll tick
+    const impulseStrength = Math.max(0.24, Math.min(Math.abs(delta) * 0.005 + diff * 14, 2.8));
+    this.scrollImpulse = Math.min(this.scrollImpulse + impulseStrength, 4.0);
+
+    // Emit sparks on EVERY single scroll tick
+    this.emitScrollSparks(this.scrollDirection, Math.floor(8 + this.scrollImpulse * 4), this.scrollImpulse);
 
     // Audio tick on every scroll
     if (window.cyberAudio) {
       window.cyberAudio.playScrollTick(this.scrollImpulse);
     }
 
-    // Trigger visual shockwave on scroll tick (debounced slightly to prevent flood)
-    if (now - this.lastShockwaveTime > 90) {
+    // Trigger visual shockwave on scroll tick
+    if (now - this.lastShockwaveTime > 60) {
       this.lastShockwaveTime = now;
       if (this.scrollImpulse > 0.8) {
         this.triggerChromaticShockwave(null, Math.min(this.scrollImpulse * 0.7, 1.4));
-      } else if (this.scrollImpulse > 0.1) {
-        this.triggerShockwave(null, Math.min(0.4 + this.scrollImpulse * 0.4, 0.9));
+      } else {
+        this.triggerShockwave(null, Math.min(0.42 + this.scrollImpulse * 0.4, 0.95), null, true);
       }
     }
   }
 
   // Injects simulated scroll energy (e.g. from UI buttons or cruise mode)
-  injectScrollImpulse(amount = 1.5) {
-    this.scrollImpulse = Math.min(this.scrollImpulse + amount, 3.5);
-    this.triggerChromaticShockwave(null, 1.3);
+  injectScrollImpulse(amount = 1.5, direction = 1) {
+    this.scrollDirection = direction;
+    this.scrollImpulse = Math.min(this.scrollImpulse + amount, 4.0);
+    this.emitScrollSparks(direction, 20, 1.5);
+    this.triggerChromaticShockwave(null, 1.4);
     if (window.cyberAudio) {
+      window.cyberAudio.playWarpBurst(amount);
       window.cyberAudio.playScrollTick(this.scrollImpulse);
     }
   }
@@ -974,6 +1117,35 @@ class CyberScene {
   // =========================================================================
   // CAMERA SPLINE INTERPOLATION WITH BANKING, PITCH & FOV WARP
   // =========================================================================
+  // Helper: Returns camera position, lookAt target, and tangent along spline at progress t
+  getSplinePoint(t) {
+    const waypoints = this.waypoints;
+    const clamped = Math.max(0, Math.min(0.9999, t));
+    let segIdx = 0;
+    for (let i = 0; i < waypoints.length - 1; i++) {
+      if (clamped >= waypoints[i].t && clamped <= waypoints[i + 1].t) {
+        segIdx = i;
+        break;
+      }
+    }
+    const p0 = waypoints[segIdx];
+    const p1 = waypoints[segIdx + 1];
+    const segT = (clamped - p0.t) / (p1.t - p0.t);
+    const smoothT = (1 - Math.cos(segT * Math.PI)) / 2;
+
+    const pos = new THREE.Vector3(
+      p0.pos.x + (p1.pos.x - p0.pos.x) * smoothT,
+      p0.pos.y + (p1.pos.y - p0.pos.y) * smoothT,
+      p0.pos.z + (p1.pos.z - p0.pos.z) * smoothT
+    );
+    const look = new THREE.Vector3(
+      p0.look.x + (p1.look.x - p0.look.x) * smoothT,
+      p0.look.y + (p1.look.y - p0.look.y) * smoothT,
+      p0.look.z + (p1.look.z - p0.look.z) * smoothT
+    );
+    return { pos, look, sector: segT >= 0.5 ? p1.sector : p0.sector };
+  }
+
   updateCameraSpline(progress) {
     const waypoints = this.waypoints;
     const clampedProgress = Math.max(0, Math.min(0.9999, progress));
@@ -1038,7 +1210,7 @@ class CyberScene {
       this.camera.position.z - 5
     );
 
-    this.currentSectorName = p0.sector;
+    this.currentSectorName = segT >= 0.5 ? p1.sector : p0.sector;
   }
 
   // =========================================================================
@@ -1075,34 +1247,77 @@ class CyberScene {
     // =======================================================================
     if (this.warpGeo && this.warpData) {
       const pos = this.warpGeo.attributes.position.array;
-      const warpFactor = this.scrollImpulse * 12.0;
+      const warpFactor = 0.25 + this.scrollImpulse * 14.0;
       const flightDir = this.scrollDirection;
       const camY = this.camera.position.y;
 
       for (let i = 0; i < this.warpCount; i++) {
         const d = this.warpData[i];
 
-        // Head position
-        let hy = d.baseY;
-        // Tail stretches backward along the flight path proportional to warpFactor
-        let ty = hy + flightDir * (0.2 + warpFactor * d.speed);
+        let hx = d.basePos.x;
+        let hy = d.basePos.y;
+        let hz = d.basePos.z;
 
-        // Keep warp particles centered within camera's vertical sphere
         if (hy > camY + 45) {
-          d.baseY -= 90;
-          hy = d.baseY;
-          ty = hy;
+          d.basePos.y -= 90;
+          hy = d.basePos.y;
         } else if (hy < camY - 45) {
-          d.baseY += 90;
-          hy = d.baseY;
-          ty = hy;
+          d.basePos.y += 90;
+          hy = d.basePos.y;
         }
 
+        const stretchLen = warpFactor * d.speed * d.lengthMultiplier;
+        const tx = hx - d.tangent.x * flightDir * stretchLen;
+        const ty = hy - d.tangent.y * flightDir * stretchLen;
+        const tz = hz - d.tangent.z * flightDir * stretchLen;
+
+        pos[i * 6] = hx;
         pos[i * 6 + 1] = hy;
+        pos[i * 6 + 2] = hz;
+        pos[i * 6 + 3] = tx;
         pos[i * 6 + 4] = ty;
+        pos[i * 6 + 5] = tz;
       }
       this.warpGeo.attributes.position.needsUpdate = true;
-      this.warpMat.opacity = 0.35 + Math.min(this.scrollImpulse * 0.5, 0.65);
+      this.warpMat.opacity = 0.38 + Math.min(this.scrollImpulse * 0.58, 0.62);
+    }
+
+    // =======================================================================
+    // SCROLL QUANTUM SPARKS ANIMATION (EMITTED ON EVERY SCROLL!)
+    // =======================================================================
+    if (this.sparkGeo && this.sparkData) {
+      const pos = this.sparkGeo.attributes.position.array;
+      const cols = this.sparkGeo.attributes.color.array;
+
+      for (let i = 0; i < this.sparkCount; i++) {
+        const sp = this.sparkData[i];
+        if (sp.life > 0) {
+          sp.life -= delta / sp.maxLife;
+
+          sp.x += sp.vx * delta;
+          sp.y += sp.vy * delta;
+          sp.z += sp.vz * delta;
+
+          sp.vx *= 0.94;
+          sp.vy *= 0.94;
+          sp.vz *= 0.94;
+
+          pos[i * 3] = sp.x;
+          pos[i * 3 + 1] = sp.y;
+          pos[i * 3 + 2] = sp.z;
+
+          const alpha = Math.max(0, sp.life);
+          cols[i * 3] = sp.color.r * alpha;
+          cols[i * 3 + 1] = sp.color.g * alpha;
+          cols[i * 3 + 2] = sp.color.b * alpha;
+
+          if (sp.life <= 0) {
+            pos[i * 3 + 2] = -9999;
+          }
+        }
+      }
+      this.sparkGeo.attributes.position.needsUpdate = true;
+      this.sparkGeo.attributes.color.needsUpdate = true;
     }
 
     // =======================================================================
@@ -1114,27 +1329,25 @@ class CyberScene {
       this.coreMesh.rotation.x += 0.005 * torqueBoost;
       this.coreWireMesh.rotation.y -= 0.012 * torqueBoost;
 
-      // Expand core breathing scale slightly on impulse
-      const coreScale = 1.0 + Math.sin(elapsedTime * 3) * 0.04 + this.scrollImpulse * 0.2;
+      const coreScale = 1.0 + Math.sin(elapsedTime * 3) * 0.04 + this.scrollImpulse * 0.28;
       this.coreMesh.scale.set(coreScale, coreScale, coreScale);
+      this.coreWireMesh.scale.set(coreScale * 1.02, coreScale * 1.02, coreScale * 1.02);
 
-      // Gimbal Rings expand radially and spin faster
-      const ringScale = 1.0 + this.scrollImpulse * 0.22;
+      const ringScale = 1.0 + this.scrollImpulse * 0.28;
       this.gimbalRings.forEach((ring, i) => {
-        ring.rotation.x += (0.01 + i * 0.008) * torqueBoost;
-        ring.rotation.y += (0.008 + i * 0.006) * torqueBoost;
+        ring.rotation.x += (0.012 + i * 0.009) * torqueBoost;
+        ring.rotation.y += (0.010 + i * 0.007) * torqueBoost;
         ring.scale.set(ringScale, ringScale, ringScale);
       });
 
-      // Orbiting satellites
       this.satellites.forEach((sat) => {
         sat.userData.angle += sat.userData.speed * delta * torqueBoost;
-        const r = sat.userData.orbitRadius;
+        const r = sat.userData.orbitRadius * (1.0 + this.scrollImpulse * 0.18);
         sat.position.x = Math.cos(sat.userData.angle) * r;
         sat.position.z = Math.sin(sat.userData.angle) * r;
         sat.position.y = Math.sin(sat.userData.angle * 2) * sat.userData.inclination * 4;
-        sat.rotation.x += 0.03 * torqueBoost;
-        sat.rotation.y += 0.04 * torqueBoost;
+        sat.rotation.x += 0.04 * torqueBoost;
+        sat.rotation.y += 0.05 * torqueBoost;
       });
     }
 
@@ -1142,18 +1355,17 @@ class CyberScene {
     if (this.aboutGroup) {
       this.aboutGroup.rotation.y = this.scrollProgress * Math.PI * 14 + elapsedTime * 0.3 * torqueBoost;
 
-      // Cascade electrical wave passing through rungs as user scrolls
       if (this.helixNodes) {
         const scrollPhase = (this.scrollProgress - 0.10) * 6.0;
         this.helixNodes.forEach((hn) => {
           const rungNorm = hn.index / this.helixNodes.length;
           const dist = Math.abs(scrollPhase - rungNorm);
-          const activeGlow = Math.max(0, 1.0 - dist * 4.0) * (0.8 + this.scrollImpulse * 1.5);
+          const activeGlow = Math.max(0, 1.0 - dist * 4.0) * (0.8 + this.scrollImpulse * 1.8);
 
           if (hn.rung.material) {
-            hn.rung.material.opacity = 0.4 + activeGlow * 0.6;
+            hn.rung.material.opacity = Math.min(1.0, 0.4 + activeGlow * 0.6);
           }
-          const scale = 1.0 + activeGlow * 0.3;
+          const scale = 1.0 + activeGlow * 0.45;
           hn.nodeA.scale.set(scale, scale, scale);
           hn.nodeB.scale.set(scale, scale, scale);
         });
@@ -1166,18 +1378,18 @@ class CyberScene {
 
     // Zone 2: Skills Galaxy (Cluster expands outward on scroll impulse)
     if (this.skillsGroup) {
-      this.skillsCenterMesh.rotation.x += 0.01 * torqueBoost;
-      this.skillsCenterMesh.rotation.y += 0.015 * torqueBoost;
+      this.skillsCenterMesh.rotation.x += 0.012 * torqueBoost;
+      this.skillsCenterMesh.rotation.y += 0.018 * torqueBoost;
 
-      const clusterSpread = 1.0 + Math.sin(this.scrollProgress * Math.PI * 4) * 0.25 + this.scrollImpulse * 0.35;
+      const clusterSpread = 1.0 + Math.sin(this.scrollProgress * Math.PI * 4) * 0.25 + this.scrollImpulse * 0.45;
       this.skillNodes.forEach((node) => {
         node.userData.angle += node.userData.rotSpeed * torqueBoost;
         const r = node.userData.radius * clusterSpread;
         node.position.x = Math.cos(node.userData.angle) * r;
         node.position.z = Math.sin(node.userData.angle) * r;
         node.position.y = node.userData.baseY + Math.sin(elapsedTime * 2 + node.userData.angle) * 0.6;
-        node.rotation.x += 0.02 * torqueBoost;
-        node.rotation.y += 0.02 * torqueBoost;
+        node.rotation.x += 0.025 * torqueBoost;
+        node.rotation.y += 0.025 * torqueBoost;
       });
     }
 
@@ -1185,11 +1397,13 @@ class CyberScene {
     if (this.projectsGroup) {
       this.projectPortals.forEach((p, idx) => {
         if (p.userData.artifact) {
-          p.userData.artifact.rotation.x += 0.015 * torqueBoost;
-          p.userData.artifact.rotation.y += 0.02 * torqueBoost;
+          p.userData.artifact.rotation.x += 0.018 * torqueBoost;
+          p.userData.artifact.rotation.y += 0.024 * torqueBoost;
+          const artScale = 1.0 + this.scrollImpulse * 0.18;
+          p.userData.artifact.scale.set(artScale, artScale, artScale);
         }
         if (p.userData.halo) {
-          p.userData.halo.rotation.z += 0.02 * torqueBoost;
+          p.userData.halo.rotation.z += 0.025 * torqueBoost;
         }
         p.position.y = p.userData.baseY + Math.sin(elapsedTime * 1.5 + idx * 1.2) * 0.35;
       });
@@ -1199,33 +1413,33 @@ class CyberScene {
     if (this.terrainGeo) {
       const pos = this.terrainGeo.attributes.position;
       const count = pos.count;
-      const surge = 1.2 + this.scrollImpulse * 1.8;
+      const surge = 1.2 + this.scrollImpulse * 2.6;
 
       for (let i = 0; i < count; i++) {
         const u = pos.getX(i);
         const v = pos.getY(i);
-        const waveZ = Math.sin(u * 0.28 + elapsedTime * 2.8 + this.scrollProgress * 24) * surge +
-                      Math.cos(v * 0.32 + elapsedTime * 2.0) * (surge * 0.8);
+        const waveZ = Math.sin(u * 0.28 + elapsedTime * 3.0 + this.scrollProgress * 26) * surge +
+                      Math.cos(v * 0.32 + elapsedTime * 2.2) * (surge * 0.85);
         pos.setZ(i, waveZ);
       }
       this.terrainGeo.attributes.position.needsUpdate = true;
 
       this.milestoneBeacons.forEach((beacon, i) => {
-        beacon.position.y = 2.5 + Math.sin(elapsedTime * 3 + i * 1.5) * 0.25;
+        beacon.position.y = 2.5 + Math.sin(elapsedTime * 3 + i * 1.5) * 0.35;
       });
     }
 
     // Zone 5: 3D Lab Morphing Core
     if (this.labGroup) {
       if (this.labCoreContainer) {
-        this.labCoreContainer.rotation.x += 0.012 * torqueBoost;
-        this.labCoreContainer.rotation.y += 0.018 * torqueBoost;
-        const labScale = 1.0 + Math.sin(elapsedTime * 2.5) * 0.05 + this.scrollImpulse * 0.2;
+        this.labCoreContainer.rotation.x += 0.014 * torqueBoost;
+        this.labCoreContainer.rotation.y += 0.022 * torqueBoost;
+        const labScale = 1.0 + Math.sin(elapsedTime * 2.5) * 0.05 + this.scrollImpulse * 0.28;
         this.labCoreContainer.scale.set(labScale, labScale, labScale);
       }
       this.labScannerRings.forEach((ring, idx) => {
-        ring.rotation.x += (0.008 + idx * 0.006) * torqueBoost;
-        ring.rotation.y += (0.012 - idx * 0.004) * torqueBoost;
+        ring.rotation.x += (0.010 + idx * 0.008) * torqueBoost;
+        ring.rotation.y += (0.015 - idx * 0.006) * torqueBoost;
       });
     }
 
@@ -1233,27 +1447,28 @@ class CyberScene {
     if (this.vortexGeo && this.vortexParticleData) {
       const pos = this.vortexGeo.attributes.position;
       const count = this.vortexParticleData.length;
-      const vortexSpeed = 1.0 + this.scrollImpulse * 7.5;
+      const vortexSpeed = 1.0 + this.scrollImpulse * 9.0;
 
       for (let i = 0; i < count; i++) {
         const p = this.vortexParticleData[i];
-        p.angle += p.speed * vortexSpeed * 0.06;
+        p.angle += p.speed * vortexSpeed * 0.07;
         const x = Math.cos(p.angle) * p.dist;
         const z = Math.sin(p.angle) * p.dist;
         pos.setXYZ(i, x, pos.getY(i), z);
       }
       this.vortexGeo.attributes.position.needsUpdate = true;
-      this.rimMesh.rotation.z += 0.02 * vortexSpeed;
+      this.rimMesh.rotation.z += 0.025 * vortexSpeed;
     }
 
     // Shockwave expansion & decay
     this.shockwaves.forEach((sw) => {
       if (sw.life > 0) {
-        sw.life -= delta * 1.6;
-        const scale = 0.5 + (1 - sw.life) * (26 * sw.intensity);
+        sw.life -= delta * 1.8;
+        const maxScale = sw.isNear ? (14 * sw.intensity) : (28 * sw.intensity);
+        const scale = 0.3 + (1 - sw.life) * maxScale;
         sw.mesh.scale.set(scale, scale, scale);
         sw.mesh.rotation.z += sw.rotSpeed;
-        sw.mat.opacity = Math.max(0, sw.life * 0.85 * sw.intensity);
+        sw.mat.opacity = Math.max(0, sw.life * 0.92 * sw.intensity);
         if (sw.life <= 0) {
           sw.mesh.visible = false;
         }
