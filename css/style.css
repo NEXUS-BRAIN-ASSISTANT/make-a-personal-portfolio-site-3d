@@ -209,6 +209,26 @@ body {
   font-weight: 600;
 }
 
+/* Auto-Cruise Button Animation */
+.hud-btn-cruise {
+  background: rgba(0, 240, 255, 0.12);
+  border-color: var(--border-glass-bright);
+  color: var(--neon-primary);
+}
+
+.hud-btn-cruise.active {
+  background: var(--neon-secondary);
+  border-color: var(--neon-secondary);
+  color: #fff;
+  box-shadow: 0 0 18px var(--neon-secondary);
+  animation: cruisePulse 1.2s infinite alternate;
+}
+
+@keyframes cruisePulse {
+  from { box-shadow: 0 0 8px var(--neon-secondary); }
+  to { box-shadow: 0 0 22px var(--neon-secondary), 0 0 35px rgba(255, 0, 127, 0.4); }
+}
+
 /* Theme Switcher Dots */
 .theme-picker {
   display: flex;
