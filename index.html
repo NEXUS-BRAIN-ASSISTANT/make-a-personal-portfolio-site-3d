@@ -88,6 +88,11 @@
         <span>SYSTEM OPERATIONAL // OPEN FOR SELECT Q1/Q2 2027 PROJECTS</span>
       </div>
 
+      <div class="scroll-reaction-badge">
+        <span class="badge-glow"></span>
+        <span>3D ENGINE ACTIVE // EVERY SCROLL POWERS DYNAMIC WARP STREAMS & TORQUE</span>
+      </div>
+
       <h1 class="hero-title">
         ALEX VANCE<br>
         <span class="gradient-text">DIMENSIONAL ARCHITECT</span>
@@ -593,21 +598,57 @@
       <div class="lab-container">
         <div class="glass-card lab-panel">
           <div class="lab-controls-list">
-            <!-- Control 1 -->
+            <!-- Control 1: Geometry Morphing Core -->
+            <div class="lab-control-item" style="flex-direction: column; align-items: flex-start; gap: 0.6rem;">
+              <div>
+                <div class="lab-label">Quantum Core Geometry</div>
+                <div class="lab-sublabel">Morphs the 3D lab artifact topology in real time</div>
+              </div>
+              <div class="lab-geo-picker">
+                <button class="btn-lab-geo active" data-geo="knot">TORUS KNOT</button>
+                <button class="btn-lab-geo" data-geo="tesseract">TESSERACT</button>
+                <button class="btn-lab-geo" data-geo="geodesic">GEODESIC</button>
+                <button class="btn-lab-geo" data-geo="mobius">MÖBIUS</button>
+              </div>
+            </div>
+
+            <!-- Control 2: Scroll Warp Injector -->
+            <div class="lab-control-item">
+              <div>
+                <div class="lab-label">Simulate Scroll Warp Impulse</div>
+                <div class="lab-sublabel">Injects +1.8 kinetic energy into 3D camera & particle streams</div>
+              </div>
+              <button id="btn-lab-impulse" class="btn-lab-action">
+                +1.8 WARP BURST
+              </button>
+            </div>
+
+            <!-- Control 3: Shockwave Burst -->
+            <div class="lab-control-item">
+              <div>
+                <div class="lab-label">Chromatic Shockwave Burst</div>
+                <div class="lab-sublabel">Dispatches multi-ring additive shockwave pulses</div>
+              </div>
+              <button id="btn-lab-shockwave" class="btn-lab-action">
+                FIRE PULSE
+              </button>
+            </div>
+
+            <!-- Control 4: Dimensional Theme -->
             <div class="lab-control-item">
               <div>
                 <div class="lab-label">Dimensional Theme Preset</div>
                 <div class="lab-sublabel">Recalibrates ambient light, material emissions, and UI neons</div>
               </div>
               <div class="theme-picker">
-                <div class="theme-dot active" data-theme="cyber" title="Cyber"></div>
-                <div class="theme-dot" data-theme="cosmos" title="Cosmos"></div>
-                <div class="theme-dot" data-theme="solar" title="Solar"></div>
-                <div class="theme-dot" data-theme="emerald" title="Emerald"></div>
+                <div class="theme-dot active" data-theme="cyber" title="Cyber Neon"></div>
+                <div class="theme-dot" data-theme="cosmos" title="Deep Cosmos"></div>
+                <div class="theme-dot" data-theme="solar" title="Solar Flare"></div>
+                <div class="theme-dot" data-theme="emerald" title="Emerald Matrix"></div>
               </div>
             </div>
 
-            <!-- Control 2 -->
+            <!-- Control 5: Wireframe Mode -->
             <div class="lab-control-item">
               <div>
                 <div class="lab-label">Wireframe Hologram Mode</div>
@@ -618,7 +659,7 @@
               </button>
             </div>
 
-            <!-- Control 3 -->
+            <!-- Control 6: Synthesizer Audio -->
             <div class="lab-control-item">
               <div>
                 <div class="lab-label">Synthesized Soundscape</div>
@@ -626,17 +667,6 @@
               </div>
               <button class="btn-lab-action" onclick="document.getElementById('btn-audio-toggle').click()">
                 AUDIO TOGGLE
-              </button>
-            </div>
-
-            <!-- Control 4 -->
-            <div class="lab-control-item">
-              <div>
-                <div class="lab-label">Energy Shockwave Burst</div>
-                <div class="lab-sublabel">Dispatches an expanding 3D ring with physical audio pulse</div>
-              </div>
-              <button class="btn-lab-action" onclick="if(window.cyberScene) window.cyberScene.triggerShockwave(null, 2.0)">
-                FIRE PULSE
               </button>
             </div>
           </div>
@@ -652,10 +682,11 @@
           <div class="terminal-body">
             <div class="terminal-line"><span class="t-out">[RENDERER]</span> WebGL ACES Filmic Tone Mapping</div>
             <div class="terminal-line"><span class="t-out">[PHYSICS]</span> Inertial Spline Damping: 0.08 Lerp</div>
-            <div class="terminal-line"><span class="t-out">[PARTICLES]</span> 2,200 Star-warp Stream Points</div>
-            <div class="terminal-line"><span class="t-out">[SHOCKWAVE]</span> Radial Additive Blending Mesh Rings</div>
-            <div class="terminal-line"><span class="t-prompt">[SCROLL]</span> Velocity Impulse Torque Multiplier: 3.5x</div>
-            <div class="terminal-line t-dim">// Scroll gently or vigorously to witness real-time camera FOV warp and angular torque bursts.</div>
+            <div class="terminal-line"><span class="t-out">[WARP STREAMS]</span> 420 Dynamic 3D Hyperdrive Speed Streaks</div>
+            <div class="terminal-line"><span class="t-out">[SHOCKWAVE]</span> 12 Multi-ring Additive Blending Mesh Rings</div>
+            <div class="terminal-line"><span class="t-prompt">[SCROLL]</span> Velocity Impulse Torque Multiplier: 3.8x</div>
+            <div class="terminal-line"><span class="t-prompt">[AERODYNAMICS]</span> Kinetic 3D Card Perspective Pitch Active</div>
+            <div class="terminal-line t-dim">// Every single scroll gesture drives camera banking, dynamic FOV expansion, and 3D warp speed streaks.</div>
           </div>
         </div>
       </div>
