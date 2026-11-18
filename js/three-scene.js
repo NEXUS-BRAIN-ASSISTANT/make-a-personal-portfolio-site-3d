@@ -742,10 +742,11 @@ class CyberScene {
   // --- CAMERA INTERPOLATION ALONG 3D SPLINE ---
   updateCameraSpline(progress) {
     const waypoints = this.waypoints;
+    const clampedProgress = Math.max(0, Math.min(0.9999, progress));
     let segIdx = 0;
 
     for (let i = 0; i < waypoints.length - 1; i++) {
-      if (progress >= waypoints[i].t && progress <= waypoints[i + 1].t) {
+      if (clampedProgress >= waypoints[i].t && clampedProgress <= waypoints[i + 1].t) {
         segIdx = i;
         break;
       }
@@ -753,7 +754,7 @@ class CyberScene {
 
     const p0 = waypoints[segIdx];
     const p1 = waypoints[segIdx + 1];
-    const segT = (progress - p0.t) / (p1.t - p0.t);
+    const segT = (clampedProgress - p0.t) / (p1.t - p0.t);
     // Smooth cosine interpolation
     const smoothT = (1 - Math.cos(segT * Math.PI)) / 2;
 
