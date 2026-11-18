@@ -524,7 +524,7 @@ body {
   line-height: 1.7;
 }
 
-/* Glassmorphism Cards with 3D Aerodynamic Kinetic Tilt */
+/* Glassmorphism Cards with 3D Aerodynamic Kinetic Tilt & Scroll Depth */
 .glass-card {
   background: var(--bg-card);
   backdrop-filter: blur(14px);
@@ -532,12 +532,13 @@ body {
   border: 1px solid var(--border-glass);
   border-radius: 14px;
   padding: 2rem;
-  transform: perspective(1200px) rotateX(var(--card-tilt, 0deg));
+  transform: perspective(1200px) rotateX(var(--card-tilt, 0deg)) translateZ(calc(var(--scroll-impulse, 0) * 8px));
   transform-style: preserve-3d;
   will-change: transform;
   transition: background 0.35s ease, border-color 0.35s ease, box-shadow 0.35s ease;
   position: relative;
   overflow: hidden;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5), 0 0 calc(var(--scroll-impulse, 0) * 22px) rgba(0, 240, 255, calc(var(--scroll-impulse, 0) * 0.28));
 }
 
 .glass-card::before {
@@ -555,8 +556,8 @@ body {
 .glass-card:hover {
   background: var(--bg-card-hover);
   border-color: var(--border-glass-bright);
-  transform: perspective(1200px) rotateX(var(--card-tilt, 0deg)) translateY(-6px) translateZ(8px);
-  box-shadow: 0 16px 40px rgba(0, 240, 255, 0.16);
+  transform: perspective(1200px) rotateX(var(--card-tilt, 0deg)) translateY(-6px) translateZ(calc(12px + var(--scroll-impulse, 0) * 8px));
+  box-shadow: 0 16px 40px rgba(0, 240, 255, 0.22);
 }
 
 .glass-card:hover::before {
@@ -1654,10 +1655,17 @@ textarea.form-control {
     grid-template-columns: 1fr;
   }
   .bottom-telemetry {
-    padding: 0 1rem;
+    padding: 0 0.8rem;
     font-size: 0.65rem;
   }
   .telemetry-coords, .telemetry-vector {
     display: none;
+  }
+  .telemetry-center .pulse-label {
+    display: none;
+  }
+  .telemetry-center {
+    padding: 2px 8px;
+    gap: 0.35rem;
   }
 }
