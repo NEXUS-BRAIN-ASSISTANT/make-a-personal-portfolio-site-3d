@@ -331,6 +331,82 @@ body {
   transition: width 0.08s ease;
 }
 
+/* Center Live 3D Scroll Impulse Kinetic Gauge */
+.telemetry-center {
+  display: flex;
+  align-items: center;
+  gap: 0.65rem;
+  padding: 3px 12px;
+  background: rgba(0, 240, 255, 0.05);
+  border: 1px solid var(--border-glass);
+  border-radius: 20px;
+  transition: all 0.2s ease;
+}
+
+.telemetry-center.active {
+  background: rgba(0, 240, 255, 0.16);
+  border-color: var(--neon-primary);
+  box-shadow: 0 0 16px rgba(0, 240, 255, 0.35);
+}
+
+.pulse-spark-icon {
+  font-size: 0.82rem;
+  color: var(--neon-primary);
+  display: inline-block;
+  transition: transform 0.15s ease;
+}
+
+.telemetry-center.active .pulse-spark-icon {
+  transform: scale(1.3);
+  text-shadow: 0 0 10px var(--neon-primary);
+}
+
+.pulse-wave-bars {
+  display: flex;
+  align-items: center;
+  gap: 2.5px;
+  height: 14px;
+}
+
+.pulse-wave-bars .p-bar {
+  width: 3px;
+  height: 3px;
+  background: var(--text-dim);
+  border-radius: 1.5px;
+  transition: height 0.08s ease, background-color 0.15s ease;
+}
+
+.telemetry-center.active .pulse-wave-bars .p-bar {
+  background: var(--neon-primary);
+}
+
+.telemetry-center.active .pulse-wave-bars .p-bar:nth-child(1) { height: 7px; }
+.telemetry-center.active .pulse-wave-bars .p-bar:nth-child(2) { height: 13px; }
+.telemetry-center.active .pulse-wave-bars .p-bar:nth-child(3) { height: 10px; }
+.telemetry-center.active .pulse-wave-bars .p-bar:nth-child(4) { height: 14px; }
+.telemetry-center.active .pulse-wave-bars .p-bar:nth-child(5) { height: 8px; }
+
+.pulse-label {
+  font-size: 0.68rem;
+  color: var(--text-dim);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+.pulse-val {
+  font-size: 0.72rem;
+  font-weight: 700;
+  color: var(--text-muted);
+  min-width: 70px;
+  letter-spacing: 0.04em;
+  transition: color 0.15s ease;
+}
+
+.telemetry-center.active .pulse-val {
+  color: var(--neon-primary);
+  text-shadow: 0 0 8px var(--neon-primary);
+}
+
 .telemetry-right {
   display: flex;
   align-items: center;
