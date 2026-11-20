@@ -52,6 +52,30 @@
       "created_at": "2026-11-18T05:53:08.035Z",
       "sender": "macOS",
       "is_cancelled": false
+    },
+    {
+      "id": "fa85d721-51ef-4b66-b27d-7aeb4c2d7719",
+      "role": "user",
+      "content": "means this Google anti-gravity is not free",
+      "status": "pending",
+      "model": "claude-sonnet-4-6",
+      "client_type": "gemini-bridge",
+      "parent_message_id": null,
+      "created_at": "2026-11-20T14:55:57.062Z",
+      "sender": "ios",
+      "is_cancelled": false
+    },
+    {
+      "id": "7165d30a-4aac-4f49-a2fb-dc0d9d78f6e6",
+      "role": "agent",
+      "content": "Your weekly Google allowance for this model is used up.\nIt comes back in about 5 days.\nTwo ways to keep going now:\n- Pick another model in the app — each family has its own allowance, and the picker shows what's left.\n- Get more from Google: https://antigravity.google/g1-upgrade",
+      "status": "error",
+      "model": "claude-sonnet-4-6",
+      "client_type": "gemini-bridge",
+      "parent_message_id": "fa85d721-51ef-4b66-b27d-7aeb4c2d7719",
+      "created_at": "2026-11-20T14:56:00.864Z",
+      "sender": "macOS",
+      "is_cancelled": false
     }
   ]
 }
